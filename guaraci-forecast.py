@@ -1,12 +1,12 @@
 #!/usr/bin/env python2
 # -*- coding: utf-8 -*-
 """
-Guaraci Forecast 0.1
+Guaraci Forecast 0.2
 
 This script deploys space weather forecast models designed by the Guaraci framework: https://github.com/tiagocinto/guaraci-toolkit. It's optimized for Python 2.7 and unix-based operating systems.
 
 Author: Tiago Cinto
-Version: 0.1
+Version: 0.2
 Email: tiago.cinto@pos.ft.unicamp.br
 """
 from __future__ import division
@@ -193,7 +193,7 @@ def is_number(string):
 def extract_attribute(line, atr_idx):
     pd_line = pd.DataFrame([line.split()])
     return pd_line.iloc[0, atr_idx]
-    
+
 
 def assemble_dataset():
     """
@@ -276,9 +276,11 @@ def assemble_dataset():
                             df.loc[j, atr] = var
                 j = j + 1
         dsd_file.close()
-        df.to_csv(WORK_PATH + 'dataframe.csv')                    
         model_input = reframe_data(df, col_names=COL_NAMES_MODEL_INPUT)
         model_input.to_csv(WORK_PATH + 'model_input.csv')
+        df_view = df.copy()
+        df_view.columns = COL_NAMES_DATAFRAME_VIEW
+        df_view.to_csv(WORK_PATH + 'dataframe.csv')     
         return model_input, df
     except Exception, e:
         print_log_msg('%s' % e)
@@ -439,13 +441,14 @@ def forecast(yes_proba, nmbr, ft, model):
     return forecast
 
 
-def exec_module(nmbr, training_data_files, features, model, input_data):
+def exec_module(nmbr, training_data_files, graphical_input_file, features, model, input_data):
     """
     This function sets up a forecasting module and executes it.
     """
     try:
         view = pd.DataFrame([])
-        view['mod%d_data_processing_time' % nmbr] = [str(datetime.now().strftime("%Y-%m-%d %H:%M"))]
+        data_processing_time = str(datetime.now().strftime("%Y-%m-%d %H:%M"))
+        view['mod%d_data_processing_time' % nmbr] = [data_processing_time]
         probabilities = pd.DataFrame([])
         forecasts = pd.DataFrame([])
         print_log_msg('Loading dataset to train models of mod%d...' % nmbr)
@@ -469,6 +472,7 @@ def exec_module(nmbr, training_data_files, features, model, input_data):
             view[('mod%d_%s_no_proba' % (nmbr, ft))] = [probabilities.loc[0, ('mod%d_%s' % (nmbr, ft))]]
             view[('mod%d_%s_yes_proba' % (nmbr, ft))] = [probabilities.loc[1, ('mod%d_%s' % (nmbr, ft))]]            
             view[('mod%d_%s_prediction' % (nmbr, ft))] = [forecasts.loc[0, ('mod%d_%s' % (nmbr, ft))]]
+            if ft == 't1d': append_text_to_file(WORK_PATH + graphical_input_file, '%s,%.2f\n' % (data_processing_time, yes_proba))
         return view
     except Exception, e:
         print_log_msg('%s' % e)
@@ -485,8 +489,8 @@ def main():
         print_log_msg('Assembling input data...')
         input_data, dataframe = assemble_dataset()
         view1['t_instant'] = ['%s-%s-%s' % (dataframe.loc[4,'year'], dataframe.loc[4,'month'], dataframe.loc[4,'day'])]
-        view2 = exec_module(1, MOD1_TRAINING_DATA_FILES, MOD1_FEATURES, MOD1, input_data)
-        view3 = exec_module(2, MOD2_TRAINING_DATA_FILES, MOD2_FEATURES, MOD2, input_data)
+        view2 = exec_module(1, MOD1_TRAINING_DATA_FILES, MOD1_GRAPHICAL_INPUT_FILE, MOD1_FEATURES, MOD1, input_data)
+        view3 = exec_module(2, MOD2_TRAINING_DATA_FILES, MOD2_GRAPHICAL_INPUT_FILE, MOD2_FEATURES, MOD2, input_data)
         view_data = pd.concat([view1, view2, view3], axis=1)
         write_view_data(view_data)
     except Exception, e:
@@ -596,11 +600,14 @@ INPUT_ATTRS = [
 """
 Parameters for configuring system's paths
 """
-WORK_PATH = '//home//ubuntu//www//sw-forecast//'
+WORK_PATH = '//home//ubuntu//www//guaraci-forecast//'
 TEMP_PATH = WORK_PATH + 'temp//'
 DATA_PATH = WORK_PATH + 'data//'
 LOG_PATH = WORK_PATH + 'log'
 VIEW_FILE_NAME = 'view.xml'
+
+MOD1_GRAPHICAL_INPUT_FILE = 'c-m-x-flare-forecasts-graphical-input.csv'
+MOD2_GRAPHICAL_INPUT_FILE = 'm-x-flare-forecasts-graphical-input.csv'
 
 
 """
@@ -624,11 +631,7 @@ SEND_CRASH_LOG = True
 Parameters for scheduling system execution
 """
 SCHEDULED_EXECUTION = True
-EXECUTION_HOUR_1 = '00:00'
-EXECUTION_HOUR_2 = '06:00'
-EXECUTION_HOUR_3 = '12:00'
-EXECUTION_HOUR_4 = '18:00'
-EXECUTION_HOUR_5 = '22:00'
+EXECUTION_HOUR = '01:00'
 
 
 """
@@ -814,7 +817,7 @@ COL_NAMES_MODEL_INPUT = [
 
 
 """
-Column names for dataframe
+Column names for dataframe (for inner processing)
 """
 COL_NAMES_DATAFRAME = [
     'year',
@@ -830,14 +833,27 @@ COL_NAMES_DATAFRAME = [
     'mag_type_wmfr'
 ]
 
+"""
+Column names for dataframe (for presenting view data)
+"""
+COL_NAMES_DATAFRAME_VIEW = [
+    'Year',
+    'Month',
+    'Day',
+    'Radio flux',
+    'Sunspot number',
+    'Sunspot area',
+    'X-ray background flux',
+    'Z component WMFR',
+    'p component WMFR',
+    'c component WMFR',
+    'Mag type WMFR'
+]
+
 main()
 
 if SCHEDULED_EXECUTION:
-    schedule.every().day.at(EXECUTION_HOUR_1).do(main)
-    schedule.every().day.at(EXECUTION_HOUR_2).do(main)
-    schedule.every().day.at(EXECUTION_HOUR_3).do(main)
-    schedule.every().day.at(EXECUTION_HOUR_4).do(main)
-    schedule.every().day.at(EXECUTION_HOUR_5).do(main)
+    schedule.every().day.at(EXECUTION_HOUR).do(main)
     #schedule.every().hour.do(main)
     #schedule.every(20).minutes.do(main)
     while True:
@@ -845,10 +861,4 @@ if SCHEDULED_EXECUTION:
         time.sleep(1)
         
         
-    
-#    try:
-#        main()
-#    except:
-#        #send_mail(str(sys.exc_info()[1]))
-#        raise
 
