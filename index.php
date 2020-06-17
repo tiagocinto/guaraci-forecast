@@ -29,7 +29,7 @@ $xmldata = simplexml_load_file("view.xml") or die("Failed to load view data.");
 							<li><a href="#first">Data</a></li>
 							<li><a href="#second">Two-Week C+M+X Flare Forecasts</a></li>
 							<li><a href="#third">Two-Week M+X Flare Forecasts</a></li><br>
-							<li><a href="#fourth">Complete Forecasts History</a></li>
+							<li><a href="#fourth">Forecasts History</a></li>
 							<li><a href="#fifth">Daily C+M+X Flare Forecast</a></li>
 							<li><a href="#sixth">Daily M+X Flare Forecast</a></li>
 						</ul>
@@ -44,7 +44,7 @@ $xmldata = simplexml_load_file("view.xml") or die("Failed to load view data.");
 										</header>
 										<p>Guaraci is a forecasting system developed by High PIDS research group at School of Technology, University of Campinas. It aims at forecasting the strongest Sun's phenomena, namely solar flares. Flares are sudden releases of radiation (X-rays) and particles that can affect the Earth's atmosphere in a few hours or days. Disturbances involve damages in several fields, including aviation and aerospace, satellites, oil and gas industries, electrical systems, and astronauts safety, leading to economic and commercial losses.
 <br/><br/>
-Solar flares are then sudden X-ray releases in the 1-8 Ångström wavelength represented in watts per square meter (W/m<sup>2</sup>). Depending on their intensities, those phenomena range over a class scale comprehending A (<10e<sup>-7</sup>), B (<10e<sup>-6</sup>), C (<10e<sup>-5</sup>), M (<10e<sup>-4</sup>), and X (>10e<sup>-4</sup>) events. Each flare class has a X-ray peak flux ten times higher than its predecessor -- M- and X-class events are the strongest ones. In addition, each class also linearly lies around [1,9], that is, a factor representing the flare intensity. Solar flares are thus represented by the product of their intensity factors with the X-ray peak flux values of their classes. 
+Solar flares are then sudden X-ray releases in the 1-8 Ångström wavelength represented in watts per square meter (W/m<sup>2</sup>). Depending on their intensities, those phenomena range over a class scale comprehending A (<10e<sup>-7</sup>), B (<10e<sup>-6</sup>), C (<10e<sup>-5</sup>), M (<10e<sup>-4</sup>), and X (>10e<sup>-4</sup>) events. Each flare class has a X-ray peak flux ten times higher than its predecessor -- M- and X-class events are the strongest ones. In addition, each class also linearly lies around [1,9], that is, a factor representing the flare intensity. Solar flares are thus represented by the product of their intensity factors with the X-ray peak flux values of their classes.
 <br/><br/>
 As such, we designed Guaraci to help to mitigate the effects of solar flares, that is, by employing efforts in the forecasting of C+M+X and M+X events in the next 24, 48, and 72 h.</p>
 
@@ -91,9 +91,131 @@ As such, we designed Guaraci to help to mitigate the effects of solar flares, th
 							</section>
 							<section id="fourth" class="main special">
 								<header class="major">
-									<h2>Complete Forecasts History</h2>
-									<p> Coming soon... </p>
+									<h2>Forecasts History</h2>
 								</header>
+								<?php
+								function getDB() {
+								   $dbConnection = new PDO("sqlite:forecasts-history.db");
+								   $dbConnection->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
+								   return $dbConnection;
+								}
+								try {
+								   $DB=getDB();
+								   // page is the current page, if there's nothing set, default is page 1
+								   $page = isset($_GET['page']) ? $_GET['page'] : 1;
+								   // set records or rows of data per page
+								   $recordsPerPage = 7;
+								   // calculate for the query LIMIT clause
+								   $fromRecordNum = ($recordsPerPage * $page) - $recordsPerPage;
+								   // select all data
+								   $query = "SELECT ref_year, ref_month, ref_day, ref_time_m_x_forecast, ref_time_c_m_x_forecast, m_x_forecast, m_x_true, c_m_x_forecast, c_m_x_true FROM history ORDER BY ref_year DESC, ref_month DESC, ref_day DESC LIMIT {$fromRecordNum}, {$recordsPerPage}";
+								   $stmt = $DB->prepare($query);
+								   $stmt->execute();
+								   $result = $stmt->fetchAll();
+								   if(count($result) > 0) {
+										// *************** <PAGING_SECTION> ***************
+									   echo "<div id='paging'>";
+									   // ***** for 'first' and 'previous' pages
+									   if($page>1){
+										   // ********** show the first page
+										   echo "<a href='" . $_SERVER['PHP_SELF'] . "#fourth' title='Go to the first page.' class='customBtn'>";
+											   echo "<span style='margin:0 .2em;'> << </span>";
+										   echo "</a>";
+										   // ********** show the previous page
+										   $prev_page = $page - 1;
+										   echo "<a href='" . $_SERVER['PHP_SELF']
+												   . "?page={$prev_page}#fourth' title='Previous page is {$prev_page}.' class='customBtn'>";
+											   echo "<span style='margin:0 .2em;'> < </span>";
+										   echo "</a>";
+									   }
+									   // ********** show the number paging
+									   // find out total pages
+									   $query = "SELECT COUNT(*) as total_rows FROM history";
+									   $stmt = $DB->prepare($query);
+									   $stmt->execute();
+									   $row = $stmt->fetch(PDO::FETCH_ASSOC);
+									   $total_rows = $row['total_rows'];
+									   $total_pages = ceil($total_rows / $recordsPerPage);
+									   // range of num links to show
+									   $range = 2;
+									   // display links to 'range of pages' around 'current page'
+									   $initial_num = $page - $range;
+									   $condition_limit_num = ($page + $range)  + 1;
+									   for ($x=$initial_num; $x<$condition_limit_num; $x++) {
+										   // be sure '$x is greater than 0' AND 'less than or equal to the $total_pages'
+										   if (($x > 0) && ($x <= $total_pages)) {
+											   // current page
+											   if ($x == $page) {
+												   echo "<span class='customBtn' style='background:grey;'>$x</span>";
+											   }
+											   // not current page
+											   else {
+												   echo " <a href='{$_SERVER['PHP_SELF']}?page=$x#fourth' class='customBtn'>$x</a> ";
+											   }
+										   }
+									   }
+									   // ***** for 'next' and 'last' pages
+									   if($page<$total_pages) {
+										   // ********** show the next page
+										   $next_page = $page + 1;
+										   echo "<a href='" . $_SERVER['PHP_SELF'] . "?page={$next_page}#fourth' title='Next page is {$next_page}.' class='customBtn'>";
+											   echo "<span style='margin:0 .2em;'> > </span>";
+										   echo "</a>";
+										   // ********** show the last page
+										   echo "<a href='" . $_SERVER['PHP_SELF'] . "?page={$total_pages}#fourth' title='Last page is {$total_pages}.' class='customBtn'>";
+											   echo "<span style='margin:0 .2em;'> >> </span>";
+										   echo "</a>";
+									   }
+								   	   echo "</div>";
+									   // ***** allow user to enter page number
+									   /*echo "<form action='" . $_SERVER['PHP_SELF'] . "' method='GET'>";
+										   echo "Go to page: ";
+										   echo "<input type='text' name='page' size='1' />";
+										   echo "<input type='submit' value='Go' class='customBtn' />";
+									   echo "</form>";*/
+
+									   	// *************** </PAGING_SECTION> ***************
+										//start table
+										echo "<table border=1px align=center>";
+									    //creating our table heading
+										echo "<tr>";
+										echo "<td>Year</td>";
+										echo "<td>Month</td>";
+										echo "<td>Day</td>";
+										echo "<td>Time M+X Forecast (UT-3)</td>";
+										echo "<td>Time C+M+X Forecast (UT-3)</td>";
+										echo "<td>M+X Forecast</td>";
+										echo "<td>M+X True</td>";
+										echo "<td>C+M+X Forecast</td>";
+										echo "<td>C+M+X True</td>";
+										echo "</tr>";
+
+
+										foreach ($result as $row) {
+										   extract($row);
+										   //creating new table row per record
+										   echo "<tr>";
+										   echo "<td>{$ref_year}</td>";
+										   echo "<td>{$ref_month}</td>";
+										   echo "<td>{$ref_day}</td>";
+										   echo "<td>{$ref_time_m_x_forecast}</td>";
+										   echo "<td>{$ref_time_c_m_x_forecast}</td>";
+										   echo "<td>{$m_x_forecast}</td>";
+										   echo "<td>{$m_x_true}</td>";
+										   echo "<td>{$c_m_x_forecast}</td>";
+										   echo "<td>{$c_m_x_true}</td>";
+										   echo "</tr>";
+									   }
+									} else {
+										echo "Sorry, no results found.";
+									}
+									echo "</table>";//end table
+									// close the database connection
+									$DB = NULL;
+								} catch(PDOException $e) {
+								   echo 'Exception : '.$e->getMessage();
+								}
+								?>
 								<ul class="statistics">
 								</ul>
 							</section>
@@ -144,7 +266,7 @@ As such, we designed Guaraci to help to mitigate the effects of solar flares, th
 									<li class="style5">
 										<strong>next 24 h</strong>
 										<br/>
-										<strong><?php echo $xmldata->view[0]->mod2_t1d_no_proba; ?></strong> Non-flare events probability for the next 24 h. 
+										<strong><?php echo $xmldata->view[0]->mod2_t1d_no_proba; ?></strong> Non-flare events probability for the next 24 h.
 										<strong><?php echo $xmldata->view[0]->mod2_t1d_yes_proba; ?></strong> M+X flare events probability for the next 24 h.
 										<br/><br/>
 										<strong><?php echo $xmldata->view[0]->mod2_t1d_prediction; ?></strong>
@@ -231,7 +353,7 @@ As such, we designed Guaraci to help to mitigate the effects of solar flares, th
 		}
 	    }
 	});
-	
+
 	var ctxCMXBarChar = document.getElementById("c-m-x-bar-chart");
 	var CMXChart = new Chart(ctxCMXBarChar, {
 	  type: 'bar',
@@ -253,7 +375,7 @@ As such, we designed Guaraci to help to mitigate the effects of solar flares, th
 		?>
 	  datasets: [{
 	      label: 'C+M+X flare probability in the next 24 h',
-		
+
 		<?php
 		echo "data:[";
 		if (($handle = fopen("c-m-x-flare-forecasts-graphical-input.csv", "r")) !== FALSE) {
@@ -279,26 +401,30 @@ As such, we designed Guaraci to help to mitigate the effects of solar flares, th
 	    lineAt: 0.45,
 	    scales: {
 	      xAxes: [{
-		ticks: {
-		  maxRotation: 90,
-		  minRotation: 80
-		}
+			ticks: {
+			  maxRotation: 90,
+			  minRotation: 80
+			}
 	      }],
 	      yAxes: [{
-		ticks: {
-		  beginAtZero: true,
-                  stepSize: 0.05,
-                  max: 1
-		}
+			ticks: {
+			  beginAtZero: true,
+	                  stepSize: 0.05,
+	                  max: 1
+			},
+			scaleLabel: {
+		        display: true,
+		        labelString: 'probability'
+		      }
 	      }]
 	    },
 
 
 	  },
 	});
-	
-	
-        
+
+
+
 	var ctxMXBarChar = document.getElementById("m-x-bar-chart");
 	var MXChart = new Chart(ctxMXBarChar, {
 	  type: 'bar',
@@ -320,7 +446,7 @@ As such, we designed Guaraci to help to mitigate the effects of solar flares, th
 		?>
 	  datasets: [{
 	      label: 'M+X flare probability in the next 24 h',
-		
+
 		<?php
 		echo "data:[";
 		if (($handle = fopen("m-x-flare-forecasts-graphical-input.csv", "r")) !== FALSE) {
@@ -346,17 +472,21 @@ As such, we designed Guaraci to help to mitigate the effects of solar flares, th
 	    lineAt: 0.43,
 	    scales: {
 	      xAxes: [{
-		ticks: {
-		  maxRotation: 90,
-		  minRotation: 80
-		}
+			ticks: {
+			  maxRotation: 90,
+			  minRotation: 80
+			}
 	      }],
 	      yAxes: [{
-		ticks: {
-		  beginAtZero: true,
-		  stepSize: 0.05,
-                  max: 1
-		}
+			ticks: {
+			  beginAtZero: true,
+			  stepSize: 0.05,
+	                  max: 1
+			},
+			scaleLabel: {
+		        display: true,
+		        labelString: 'probability'
+		      }
 	      }]
 	    }
 	  }

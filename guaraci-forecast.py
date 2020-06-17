@@ -1,12 +1,12 @@
 #!/usr/bin/env python2
 # -*- coding: utf-8 -*-
 """
-Guaraci Forecast 0.2
+Guaraci Forecast 0.3
 
 This script deploys space weather forecast models designed by the Guaraci framework: https://github.com/tiagocinto/guaraci-toolkit. It's optimized for Python 2.7 and unix-based operating systems.
 
 Author: Tiago Cinto
-Version: 0.2
+Version: 0.3
 Email: tiago.cinto@pos.ft.unicamp.br
 """
 from __future__ import division
@@ -16,9 +16,11 @@ def warn(*args, **kwargs):
 import warnings
 warnings.warn = warn
 
-from datetime import datetime
+import datetime
+from datetime import datetime as dtime
 from urllib2 import urlopen #, URLError, HTTPError
 
+import sqlite3
 import traceback
 import schedule
 import time
@@ -26,8 +28,6 @@ import pandas as pd
 import numpy as np
 import xml.etree.ElementTree as et
 from sklearn.tree import DecisionTreeClassifier
-from sklearn.neighbors import KNeighborsClassifier
-from sklearn.naive_bayes import GaussianNB
 
 import smtplib
 from email.mime.multipart import MIMEMultipart
@@ -91,7 +91,7 @@ def format_log_message(msg):
     """
     This function formats a log msg. This is done to represent time the log entry was created.
     """
-    return str('%s | %s' % (datetime.now(), msg))
+    return str('%s | %s' % (dtime.now(), msg))
 
 
 def safe_division(n, d):
@@ -193,6 +193,25 @@ def is_number(string):
 def extract_attribute(line, atr_idx):
     pd_line = pd.DataFrame([line.split()])
     return pd_line.iloc[0, atr_idx]
+
+
+def assess_flare_counts():
+    """
+    This function counts how many flare events happened in the past 
+    """
+    i = 0
+    dsd_path = TEMP_PATH + DSD_FILE_NAME
+    file_length = count_file_length(dsd_path)
+    dsd_file = open(dsd_path, 'r')
+    c_class_count = m_class_count = x_class_count = 0
+    for line in dsd_file:
+        i = i + 1
+        if i == file_length:
+            c_class_count = int(extract_attribute(line, 9))
+            m_class_count = int(extract_attribute(line, 10))
+            x_class_count = int(extract_attribute(line, 11))
+    dsd_file.close()
+    return c_class_count, m_class_count, x_class_count
 
 
 def assemble_dataset():
@@ -447,7 +466,7 @@ def exec_module(nmbr, training_data_files, graphical_input_file, features, model
     """
     try:
         view = pd.DataFrame([])
-        data_processing_time = str(datetime.now().strftime("%Y-%m-%d %H:%M"))
+        data_processing_time = str(dtime.now().strftime("%Y-%m-%d %H:%M"))
         view['mod%d_data_processing_time' % nmbr] = [data_processing_time]
         probabilities = pd.DataFrame([])
         forecasts = pd.DataFrame([])
@@ -479,6 +498,43 @@ def exec_module(nmbr, training_data_files, graphical_input_file, features, model
         if SEND_CRASH_LOG: send_mail('%s' % traceback.format_exc()) 
         return reset_module_view(['mod%d' % nmbr])
 
+
+def create_connection(db_file):
+    """ 
+    This function creates a database connection to the sqlite database
+    """
+    conn = None
+    conn = sqlite3.connect(db_file)
+    return conn
+
+
+def create_db_forecast_history_entry(ref_year, ref_month, ref_day, ref_time_m_x_forecast, ref_time_c_m_x_forecast, m_x_forecast, m_x_true, c_m_x_forecast, c_m_x_true):
+    """
+    This function creates a new entry into the history table
+    """
+    sql = str("INSERT INTO history(ref_year, ref_month, ref_day, ref_time_m_x_forecast, ref_time_c_m_x_forecast, m_x_forecast, m_x_true, c_m_x_forecast, c_m_x_true) VALUES('%s','%s','%s','%s','%s','%s','%s','%s','%s')" % (ref_year, ref_month, ref_day, ref_time_m_x_forecast, ref_time_c_m_x_forecast, m_x_forecast, m_x_true, c_m_x_forecast, c_m_x_true))
+    conn = create_connection(WORK_PATH + FORECASTS_HISTORY_DB)
+    cur = conn.cursor()
+    cur.execute(sql)
+    conn.commit()
+    conn.close()
+
+
+def update_db_forecast_history_entry(ref_year, ref_month, ref_day, m_x_true, c_m_x_true):
+    """
+    This function updates an existing entry in the history table
+    """
+    sql = str("UPDATE history SET m_x_true='%s', c_m_x_true='%s' WHERE ref_year='%s' AND ref_month='%s' AND ref_day='%s'" % (m_x_true, c_m_x_true, ref_year, ref_month, ref_day))
+    print(sql)
+    conn = create_connection(WORK_PATH + FORECASTS_HISTORY_DB)
+    cur = conn.cursor()
+    cur.execute(sql)
+    conn.commit()
+    conn.close()
+    
+    
+global view_data
+
 def main():
     """
     Main controller.
@@ -491,8 +547,28 @@ def main():
         view1['t_instant'] = ['%s-%s-%s' % (dataframe.loc[4,'year'], dataframe.loc[4,'month'], dataframe.loc[4,'day'])]
         view2 = exec_module(1, MOD1_TRAINING_DATA_FILES, MOD1_GRAPHICAL_INPUT_FILE, MOD1_FEATURES, MOD1, input_data)
         view3 = exec_module(2, MOD2_TRAINING_DATA_FILES, MOD2_GRAPHICAL_INPUT_FILE, MOD2_FEATURES, MOD2, input_data)
+        global view_data
         view_data = pd.concat([view1, view2, view3], axis=1)
         write_view_data(view_data)
+        
+        create_db_forecast_history_entry(ref_year=view_data.loc[0,'mod1_data_processing_time'][0:4:1], 
+                                         ref_month=view_data.loc[0,'mod1_data_processing_time'][5:7:1], 
+                                         ref_day=view_data.loc[0,'mod1_data_processing_time'][8:10:1], 
+                                         ref_time_m_x_forecast=view_data.loc[0,'mod2_data_processing_time'][11:16:1], 
+                                         ref_time_c_m_x_forecast=view_data.loc[0,'mod1_data_processing_time'][11:16:1], 
+                                         m_x_forecast=view_data.loc[0,'mod2_t1d_prediction'], 
+                                         m_x_true='Not available', 
+                                         c_m_x_forecast=view_data.loc[0,'mod2_t1d_prediction'], 
+                                         c_m_x_true='Not available')
+        cur_date_str = str('%s-%s-%s' % (view_data.loc[0,'mod1_data_processing_time'][0:4:1], view_data.loc[0,'mod1_data_processing_time'][5:7:1], view_data.loc[0,'mod1_data_processing_time'][8:10:1]))
+        cur_date_obj = datetime.datetime.strptime(cur_date_str, '%Y-%m-%d')
+        prev_date_obj = cur_date_obj - datetime.timedelta(1)
+        c_class_count, m_class_count, x_class_count = assess_flare_counts()
+        update_db_forecast_history_entry(ref_year=prev_date_obj.year, 
+                                         ref_month=prev_date_obj.month, 
+                                         ref_day=prev_date_obj.day, 
+                                         m_x_true='Yes' if m_class_count > 0 or x_class_count > 0 else 'No', 
+                                         c_m_x_true='Yes' if c_class_count > 0 or m_class_count > 0 or x_class_count > 0 else 'No')
     except Exception, e:
         print_log_msg('%s' % e)
         if SEND_CRASH_LOG: send_mail('%s' % traceback.format_exc()) 
@@ -593,7 +669,7 @@ INPUT_ATTRS = [
     ['z_component_wmfr', -1, 'reg', 28.875546, 23.376342],
     ['p_component_wmfr', -1, 'reg', 28.875546, 23.320936],
     ['c_component_wmfr', -1, 'reg', 28.875546, 22.963968],
-    ['mag_type_wmfr', -1, 'reg', 28.866666, 23.217382]
+    
 ]
 
 
@@ -609,6 +685,7 @@ VIEW_FILE_NAME = 'view.xml'
 MOD1_GRAPHICAL_INPUT_FILE = 'c-m-x-flare-forecasts-graphical-input.csv'
 MOD2_GRAPHICAL_INPUT_FILE = 'm-x-flare-forecasts-graphical-input.csv'
 
+FORECASTS_HISTORY_DB = 'forecasts-history.db'
 
 """
 URLs for downloading data files
@@ -861,4 +938,5 @@ if SCHEDULED_EXECUTION:
         time.sleep(1)
         
         
+
 
