@@ -698,9 +698,9 @@ SRS_URL = 'ftp://ftp.swpc.noaa.gov/pub/warehouse/2020/SRS/'
 """
 Parameters for setting up system crash log
 """
-SMTP_PASSWORD = "QcWtIBkZgdxyLvaq"
-CRASH_LOG_FROM_ADDRESS = "tiago.cinto@gmail.com"
-CRASH_LOG_TO_ADDRESS = "tiago.cinto@gmail.com"
+SMTP_PASSWORD = "password"
+CRASH_LOG_FROM_ADDRESS = "from_address"
+CRASH_LOG_TO_ADDRESS = "to_address"
 SMTP_SERVER = 'smtp-relay.sendinblue.com:587'
 SEND_CRASH_LOG = True
 
