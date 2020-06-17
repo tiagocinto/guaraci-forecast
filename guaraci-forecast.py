@@ -572,7 +572,13 @@ def main():
     except Exception, e:
         print_log_msg('%s' % e)
         if SEND_CRASH_LOG: send_mail('%s' % traceback.format_exc()) 
-    
+
+
+def load_smtp_parameter(param):
+    df = pd.read_csv(SMTP_CONF_PATH)
+    return df.loc[0, param]
+
+
     
 """
 ARs' Zpc classes
@@ -676,21 +682,25 @@ INPUT_ATTRS = [
 """
 Parameters for configuring system's paths
 """
-WORK_PATH = '//home//ubuntu//www//guaraci-forecast//'
+WORK_PATH = '//home//tiago//www//guaraci//'
 TEMP_PATH = WORK_PATH + 'temp//'
 DATA_PATH = WORK_PATH + 'data//'
 LOG_PATH = WORK_PATH + 'log'
 VIEW_FILE_NAME = 'view.xml'
+
+SMTP_CONF_FILE_NAME = 'guaraci.smtp'
+SMTP_CONF_PATH = WORK_PATH + SMTP_CONF_FILE_NAME
 
 MOD1_GRAPHICAL_INPUT_FILE = 'c-m-x-flare-forecasts-graphical-input.csv'
 MOD2_GRAPHICAL_INPUT_FILE = 'm-x-flare-forecasts-graphical-input.csv'
 
 FORECASTS_HISTORY_DB = 'forecasts-history.db'
 
+
 """
 URLs for downloading data files
 """
-DSD_FILE_NAME = 'DSD.txt'
+DSD_FILE_NAME = 'DSD1.txt'
 DSD_URL = 'ftp://ftp.swpc.noaa.gov/pub/indices/' + DSD_FILE_NAME
 SRS_URL = 'ftp://ftp.swpc.noaa.gov/pub/warehouse/2020/SRS/'
 
@@ -698,16 +708,17 @@ SRS_URL = 'ftp://ftp.swpc.noaa.gov/pub/warehouse/2020/SRS/'
 """
 Parameters for setting up system crash log
 """
-SMTP_PASSWORD = "password"
-CRASH_LOG_FROM_ADDRESS = "from_address"
-CRASH_LOG_TO_ADDRESS = "to_address"
-SMTP_SERVER = 'smtp-relay.sendinblue.com:587'
+SMTP_PASSWORD = load_smtp_parameter('smtp_key')
+CRASH_LOG_FROM_ADDRESS = load_smtp_parameter('from_address')
+CRASH_LOG_TO_ADDRESS = load_smtp_parameter('to_address')
+SMTP_SERVER = load_smtp_parameter('smtp_server')
 SEND_CRASH_LOG = True
+
 
 """
 Parameters for scheduling system execution
 """
-SCHEDULED_EXECUTION = True
+SCHEDULED_EXECUTION = False
 EXECUTION_HOUR = '01:00'
 
 

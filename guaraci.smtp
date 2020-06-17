@@ -1,0 +1,2 @@
+smtp_key,from_address,to_address,smtp_server
+password,email,email,server
