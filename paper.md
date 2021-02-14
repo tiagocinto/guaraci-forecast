@@ -65,19 +65,19 @@ We designed the Guaraci system under the layered architecture shown in Figure 1.
 
 The components of the AI layer process NOAA/SWPC data and feed the model layer prepared under an Apache Web Server -- containing the data for system's forecasts, history, and graphics (i.e., XML and CSV data files). The system then renders such data in the view layer (i.e., HTML and CSS) supported by its PHP-based controller module.
 
-![Guaraci's Architecture.](imgs/guaraci-architecture.png)
+![Guaraci's Architecture.](images/guaraci-architecture.png)
 
 By using six indepent tree-based machine learning ensembles [@Han:2006], Guaraci daily provides $\geq$ C- and $\geq$ M-class flare forecasts within the next 24, 48, and 72 h. To support the visualization of such forecasts, the system has a detailed user interface holding the calculated probabilities for each horizon, as well as the suggested binary forecasts, drawn by custom prediction thresholds adjusted during the learning algorithms' designs\footnote{For further information on how to design custom forecast models for Guaraci, refer to @Cinto:2020b and @Cinto:2020a}. Figure 2 shows this interface for flares higher than or equal to M-class.
 
-![Guaraci's daily M+X forecasts.](imgs/guaraci-daily-mx-forecasts.png)
+![Guaraci's daily M+X forecasts.](images/guaraci-daily-mx-forecasts.png)
 
 Besides presenting detailed forecast reports daily, Guaraci also holds a feature for displaying the graphical probabilities of events in the last two weeks. However, in this graph, such probabilities are only displayed for the next 24 h along with a horizontal red line: the flare threshold. Accordingly, Figure 3 shows this graph for flares higher than or equal to C-class. The tool also extends this feature to $\geq$ M-class events.
 
-![Guaraci's two-week C+M+X flare forecasts.](imgs/guaraci-two-week-mx-forecasts.png)
+![Guaraci's two-week C+M+X flare forecasts.](images/guaraci-two-week-mx-forecasts.png)
 
 The last feature comprehending Guaraci is the full report of forecasts within 24 h. This component refers to the table shown in Figure 4. This table holds "True" and "Forecast" columns representing whether flares happened (NOAA/SWPC confirmations), and the probabilities of flares by Guaraci, respectively. Each new entry in this table always keeps the "True" column as "Not available" until the next 24 h period closes, when the system confirms with NOAA/SWPC whether some event occurred.
 
-![Guaraci's forecast history.](imgs/guaraci-forecast-history.png)
+![Guaraci's forecast history.](images/guaraci-forecast-history.png)
 
 
 # Acknowledgements
