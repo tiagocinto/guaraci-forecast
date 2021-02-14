@@ -700,9 +700,9 @@ FORECASTS_HISTORY_DB = 'forecasts-history.db'
 """
 URLs for downloading data files
 """
-DSD_FILE_NAME = 'DSD1.txt'
+DSD_FILE_NAME = 'DSD.txt'
 DSD_URL = 'ftp://ftp.swpc.noaa.gov/pub/indices/' + DSD_FILE_NAME
-SRS_URL = 'ftp://ftp.swpc.noaa.gov/pub/warehouse/2020/SRS/'
+SRS_URL = 'ftp://ftp.swpc.noaa.gov/pub/warehouse/2021/SRS/'
 
 
 """
