@@ -1,9 +1,6 @@
-temp/
 dataframe.csv
 log
 model_input.csv
-paper.bib
-paper.md
 view.xml
 m-x-flare-forecasts-graphical-input.csv
 c-m-x-flare-forecasts-graphical-input.csv
